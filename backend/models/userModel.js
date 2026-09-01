@@ -63,8 +63,28 @@ async function createUser(name, email, hashedPassword) {
   }
 }
 
+async function deleteUserByEmail(email) {
+  let connection;
+
+  try {
+    connection = await db.getConnection();
+
+    const [result] = await connection.query(
+      "DELETE FROM users WHERE email = ?",
+      [email]
+    );
+
+    return result;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
 module.exports = {
   findUserByEmail,
   findUserById,
   createUser,
+  deleteUserByEmail,
 };

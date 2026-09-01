@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Eye } from "lucide-react";
 import "./NoteCard.css";
 import DOMPurify from "dompurify";
 
@@ -18,6 +18,8 @@ function getPlainTextPreview(content, maxLength = 120) {
 function NoteCard({ note, onDelete }) {
   const deleteButtonRef = useRef(null);
   const modalRef = useRef(null);
+  const noteViewModalRef = useRef(null);
+  const viewButtonRef = useRef(null);
   const navigate = useNavigate();
   const cancelButtonRef = useRef(null);
 
@@ -117,33 +119,65 @@ function NoteCard({ note, onDelete }) {
     };
   }, [showConfirm, deleting]);
 
+  useEffect(() => {
+    const dialog = noteViewModalRef.current;
+  
+    if (showNote && dialog && !dialog.open) {
+      dialog.showModal();
+    }
+  }, [showNote]);
+
+  const closeNoteModal = () => {
+    const dialog = noteViewModalRef.current;
+  
+    if (dialog?.open) {
+      dialog.close();
+    }
+  
+    setShowNote(false);
+    viewButtonRef.current?.focus();
+  };
+  
+  useEffect(() => {
+    if (!showNote) {
+      return;
+    }
+  
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        closeNoteModal();
+      }
+    };
+  
+    document.addEventListener("keydown", handleKeyDown);
+  
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showNote]);
+
+
   return (
     <>
-      <div
-        className="note-card"
-        onClick={() => setShowNote(true)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.target !== event.currentTarget) {
-              return;
-          }
-            
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            setShowNote(true);
-    }
-  }}
->
+      <div className="note-card">
         <div className="note-card-header">
           <h3>{note.title}</h3>
 
           <div className="note-card-actions">
             <button
+              ref={viewButtonRef}
+              type="button"
+              className="view-note-btn"
+              onClick={() => setShowNote(true)}
+              aria-label={`View ${note.title}`}
+            >
+              <Eye size={17} strokeWidth={2} />
+            </button>
+
+            <button
               type="button"
               className="edit-note-btn"
-              onClick={(event) => {
-                event.stopPropagation();
+              onClick={() => {
                 navigate(`/notes/${note.id}/edit`);
               }}
               aria-label={`Edit ${note.title}`}
@@ -155,10 +189,7 @@ function NoteCard({ note, onDelete }) {
               ref={deleteButtonRef}
               type="button"
               className="delete-note-btn"
-              onClick={(event) => {
-                event.stopPropagation();
-                setShowConfirm(true);
-              }}
+              onClick={() => setShowConfirm(true)}
               aria-label={`Delete ${note.title}`}
             >
               <Trash2 size={17} strokeWidth={2} />
@@ -173,13 +204,11 @@ function NoteCard({ note, onDelete }) {
 
       {showConfirm && (
         <div className="modal-overlay">
-          <div
+          <dialog
             ref={modalRef}
             className="delete-modal"
-            role="dialog"
-            aria-modal="true"
             aria-labelledby="delete-modal-title"
-            tabIndex="-1"
+            open
           >
             <h2 id="delete-modal-title">Delete Note?</h2>
 
@@ -190,7 +219,7 @@ function NoteCard({ note, onDelete }) {
 
             <div className="modal-actions">
               <button
-              ref={cancelButtonRef}
+                ref={cancelButtonRef}
                 type="button"
                 className="cancel-btn"
                 onClick={closeModal}
@@ -208,29 +237,24 @@ function NoteCard({ note, onDelete }) {
                 {deleting ? "Deleting..." : "Delete"}
               </button>
             </div>
-          </div>
+          </dialog>
         </div>
       )}
 
-      {showNote && (
-        <div
-          className="note-view-overlay"
-          onClick={() => setShowNote(false)}
-        >
-          <div
-            className="note-view-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="note-view-title"
-            onClick={(event) => event.stopPropagation()}
-          >
+{showNote && (
+  <div className="note-view-overlay">
+    <dialog
+      ref={noteViewModalRef}
+      className="note-view-modal"
+      aria-labelledby="note-view-title"
+    >
             <div className="note-view-header">
               <h2 id="note-view-title">{note.title}</h2>
 
               <button
                 type="button"
                 className="close-note-btn"
-                onClick={() => setShowNote(false)}
+                onClick={closeNoteModal}
                 aria-label="Close note"
               >
                 ×
@@ -242,7 +266,7 @@ function NoteCard({ note, onDelete }) {
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(note.content) }}
             />
             <small>{formattedDate}</small>
-          </div>
+            </dialog>
         </div>
       )}
     </>
